@@ -1,4 +1,4 @@
-// Copyright 2016-2021, Pulumi Corporation.
+// Copyright 2016-2022, Pulumi Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,28 +43,28 @@ func newServiceCrypter(client *client.Client, stack client.StackIdentifier) conf
 	return &serviceCrypter{client: client, stack: stack}
 }
 
-func (c *serviceCrypter) EncryptValue(plaintext string) (string, error) {
-	ciphertext, err := c.client.EncryptValue(context.Background(), c.stack, []byte(plaintext))
+func (c *serviceCrypter) EncryptValueWithContext(ctx context.Context, plaintext string) (string, error) {
+	ciphertext, err := c.client.EncryptValue(ctx, c.stack, []byte(plaintext))
 	if err != nil {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-func (c *serviceCrypter) DecryptValue(cipherstring string) (string, error) {
+func (c *serviceCrypter) DecryptValueWithContext(ctx context.Context, cipherstring string) (string, error) {
 	ciphertext, err := base64.StdEncoding.DecodeString(cipherstring)
 	if err != nil {
 		return "", err
 	}
 
-	plaintext, err := c.client.DecryptValue(context.Background(), c.stack, ciphertext)
+	plaintext, err := c.client.DecryptValue(ctx, c.stack, ciphertext)
 	if err != nil {
 		return "", err
 	}
 	return string(plaintext), nil
 }
 
-func (c *serviceCrypter) BulkDecrypt(secrets []string) (map[string]string, error) {
+func (c *serviceCrypter) BulkDecryptWithContext(ctx context.Context, secrets []string) (map[string]string, error) {
 	var secretsToDecrypt [][]byte
 	for _, val := range secrets {
 		ciphertext, err := base64.StdEncoding.DecodeString(val)
@@ -74,7 +74,7 @@ func (c *serviceCrypter) BulkDecrypt(secrets []string) (map[string]string, error
 		secretsToDecrypt = append(secretsToDecrypt, ciphertext)
 	}
 
-	decryptedList, err := c.client.BulkDecryptValue(context.Background(), c.stack, secretsToDecrypt)
+	decryptedList, err := c.client.BulkDecryptValue(ctx, c.stack, secretsToDecrypt)
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +85,18 @@ func (c *serviceCrypter) BulkDecrypt(secrets []string) (map[string]string, error
 	}
 
 	return decryptedSecrets, nil
+}
+
+func (c serviceCrypter) DecryptValue(ciphertext string) (string, error) {
+	return c.DecryptValueWithContext(context.Background(), ciphertext)
+}
+
+func (c serviceCrypter) BulkDecrypt(ciphertexts []string) (map[string]string, error) {
+	return c.BulkDecryptWithContext(context.Background(), ciphertexts)
+}
+
+func (c serviceCrypter) EncryptValue(plaintext string) (string, error) {
+	return c.EncryptValueWithContext(context.Background(), plaintext)
 }
 
 type serviceSecretsManagerState struct {

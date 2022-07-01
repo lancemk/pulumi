@@ -16,6 +16,7 @@
 package passphrase
 
 import (
+	"context"
 	cryptorand "crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -314,17 +315,29 @@ func newLockedPasspharseSecretsManager(state localSecretsManagerState) secrets.M
 
 type errorCrypter struct{}
 
-func (ec *errorCrypter) EncryptValue(_ string) (string, error) {
+func (ec *errorCrypter) EncryptValueWithContext(ctx context.Context, _ string) (string, error) {
 	return "", errors.New("failed to encrypt: incorrect passphrase, please set PULUMI_CONFIG_PASSPHRASE to the " +
 		"correct passphrase or set PULUMI_CONFIG_PASSPHRASE_FILE to a file containing the passphrase")
 }
 
-func (ec *errorCrypter) DecryptValue(_ string) (string, error) {
+func (ec *errorCrypter) DecryptValueWithContext(ctx context.Context, _ string) (string, error) {
 	return "", errors.New("failed to decrypt: incorrect passphrase, please set PULUMI_CONFIG_PASSPHRASE to the " +
 		"correct passphrase or set PULUMI_CONFIG_PASSPHRASE_FILE to a file containing the passphrase")
 }
 
-func (ec *errorCrypter) BulkDecrypt(_ []string) (map[string]string, error) {
+func (ec *errorCrypter) BulkDecryptWithContext(ctx context.Context, _ []string) (map[string]string, error) {
 	return nil, errors.New("failed to decrypt: incorrect passphrase, please set PULUMI_CONFIG_PASSPHRASE to the " +
 		"correct passphrase or set PULUMI_CONFIG_PASSPHRASE_FILE to a file containing the passphrase")
+}
+
+func (ec *errorCrypter) DecryptValue(ciphertext string) (string, error) {
+	return ec.DecryptValueWithContext(context.Background(), ciphertext)
+}
+
+func (ec *errorCrypter) BulkDecrypt(ciphertexts []string) (map[string]string, error) {
+	return ec.BulkDecryptWithContext(context.Background(), ciphertexts)
+}
+
+func (ec *errorCrypter) EncryptValue(plaintext string) (string, error) {
+	return ec.EncryptValueWithContext(context.Background(), plaintext)
 }

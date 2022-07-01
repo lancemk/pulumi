@@ -1,4 +1,4 @@
-// Copyright 2016-2018, Pulumi Corporation.
+// Copyright 2016-2022, Pulumi Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package b64
 
 import (
+	"context"
 	"encoding/base64"
 
 	"github.com/pulumi/pulumi/pkg/v3/secrets"
@@ -38,10 +39,11 @@ func (m *manager) Decrypter() (config.Decrypter, error) { return &base64Crypter{
 
 type base64Crypter struct{}
 
-func (c *base64Crypter) EncryptValue(s string) (string, error) {
+func (c *base64Crypter) EncryptValueWithContext(ctx context.Context, s string) (string, error) {
 	return base64.StdEncoding.EncodeToString([]byte(s)), nil
 }
-func (c *base64Crypter) DecryptValue(s string) (string, error) {
+
+func (c *base64Crypter) DecryptValueWithContext(ctx context.Context, s string) (string, error) {
 	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil {
 		return "", err
@@ -49,6 +51,18 @@ func (c *base64Crypter) DecryptValue(s string) (string, error) {
 	return string(b), nil
 }
 
-func (c *base64Crypter) BulkDecrypt(ciphertexts []string) (map[string]string, error) {
+func (c *base64Crypter) BulkDecryptWithContext(ctx context.Context, ciphertexts []string) (map[string]string, error) {
 	return config.DefaultBulkDecrypt(c, ciphertexts)
+}
+
+func (c *base64Crypter) DecryptValue(ciphertext string) (string, error) {
+	return c.DecryptValueWithContext(context.Background(), ciphertext)
+}
+
+func (c *base64Crypter) BulkDecrypt(ciphertexts []string) (map[string]string, error) {
+	return c.BulkDecryptWithContext(context.Background(), ciphertexts)
+}
+
+func (c *base64Crypter) EncryptValue(plaintext string) (string, error) {
+	return c.EncryptValueWithContext(context.Background(), plaintext)
 }
