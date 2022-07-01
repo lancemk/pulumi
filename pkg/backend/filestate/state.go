@@ -87,17 +87,23 @@ func (u *update) GetTarget() *deploy.Target {
 	return u.target
 }
 
-func (b *localBackend) newQuery(ctx context.Context,
+func (b *localBackend) newQuery(
+	ctx context.Context,
 	op backend.QueryOperation) (engine.QueryInfo, error) {
 
 	return &localQuery{root: op.Root, proj: op.Proj}, nil
 }
 
-func (b *localBackend) newUpdate(stackName tokens.Name, op backend.UpdateOperation) (*update, error) {
+func (b *localBackend) newUpdate(
+	ctx context.Context,
+	stackName tokens.Name,
+	op backend.UpdateOperation) (*update, error) {
+
 	contract.Require(stackName != "", "stackName")
 
 	// Construct the deployment target.
-	target, err := b.getTarget(stackName, op.StackConfiguration.Config, op.StackConfiguration.Decrypter)
+	target, err := b.getTarget(ctx, stackName, op.StackConfiguration.Config,
+		op.StackConfiguration.Decrypter)
 	if err != nil {
 		return nil, err
 	}
@@ -111,8 +117,12 @@ func (b *localBackend) newUpdate(stackName tokens.Name, op backend.UpdateOperati
 	}, nil
 }
 
-func (b *localBackend) getTarget(stackName tokens.Name, cfg config.Map, dec config.Decrypter) (*deploy.Target, error) {
-	snapshot, _, err := b.getStack(stackName)
+func (b *localBackend) getTarget(
+	ctx context.Context,
+	stackName tokens.Name,
+	cfg config.Map,
+	dec config.Decrypter) (*deploy.Target, error) {
+	snapshot, _, err := b.getStack(ctx, stackName)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +134,7 @@ func (b *localBackend) getTarget(stackName tokens.Name, cfg config.Map, dec conf
 	}, nil
 }
 
-func (b *localBackend) getStack(name tokens.Name) (*deploy.Snapshot, string, error) {
+func (b *localBackend) getStack(ctx context.Context, name tokens.Name) (*deploy.Snapshot, string, error) {
 	if name == "" {
 		return nil, "", errors.New("invalid empty stack name")
 	}
@@ -137,8 +147,7 @@ func (b *localBackend) getStack(name tokens.Name) (*deploy.Snapshot, string, err
 	}
 
 	// Materialize an actual snapshot object.
-	// TODO context.Background() seems wrong, keep refactoring ?
-	snapshot, err := stack.DeserializeCheckpoint(context.Background(), chk)
+	snapshot, err := stack.DeserializeCheckpoint(ctx, chk)
 	if err != nil {
 		return nil, "", err
 	}
@@ -305,7 +314,7 @@ func backupTarget(bucket Bucket, file string, keepOriginal bool) string {
 }
 
 // backupStack copies the current Checkpoint file to ~/.pulumi/backups.
-func (b *localBackend) backupStack(name tokens.Name) error {
+func (b *localBackend) backupStack(ctx context.Context, name tokens.Name) error {
 	contract.Require(name != "", "name")
 
 	// Exit early if backups are disabled.
@@ -315,7 +324,7 @@ func (b *localBackend) backupStack(name tokens.Name) error {
 
 	// Read the current checkpoint file. (Assuming it aleady exists.)
 	stackPath := b.stackPath(name)
-	byts, err := b.bucket.ReadAll(context.TODO(), stackPath)
+	byts, err := b.bucket.ReadAll(ctx, stackPath)
 	if err != nil {
 		return err
 	}
@@ -335,7 +344,7 @@ func (b *localBackend) backupStack(name tokens.Name) error {
 		base = strings.TrimSuffix(base, ext2)
 	}
 	backupFile := fmt.Sprintf("%s.%v%s", base, time.Now().UnixNano(), ext)
-	return b.bucket.WriteAll(context.TODO(), filepath.Join(backupDir, backupFile), byts, nil)
+	return b.bucket.WriteAll(ctx, filepath.Join(backupDir, backupFile), byts, nil)
 }
 
 func (b *localBackend) stackPath(stack tokens.Name) string {
@@ -511,7 +520,7 @@ func (b *localBackend) renameHistory(oldName tokens.Name, newName tokens.Name) e
 }
 
 // addToHistory saves the UpdateInfo and makes a copy of the current Checkpoint file.
-func (b *localBackend) addToHistory(name tokens.Name, update backend.UpdateInfo) error {
+func (b *localBackend) addToHistory(ctx context.Context, name tokens.Name, update backend.UpdateInfo) error {
 	contract.Require(name != "", "name")
 
 	dir := b.historyDirectory(name)
@@ -532,11 +541,11 @@ func (b *localBackend) addToHistory(name tokens.Name, update backend.UpdateInfo)
 	}
 
 	historyFile := fmt.Sprintf("%s.history.%s", pathPrefix, ext)
-	if err = b.bucket.WriteAll(context.TODO(), historyFile, byts, nil); err != nil {
+	if err = b.bucket.WriteAll(ctx, historyFile, byts, nil); err != nil {
 		return err
 	}
 
 	// Make a copy of the checkpoint file. (Assuming it already exists.)
 	checkpointFile := fmt.Sprintf("%s.checkpoint.%s", pathPrefix, ext)
-	return b.bucket.Copy(context.TODO(), checkpointFile, b.stackPath(name), nil)
+	return b.bucket.Copy(ctx, checkpointFile, b.stackPath(name), nil)
 }
