@@ -183,8 +183,7 @@ func parseImportFile(f importFile, protectResources bool) ([]deploy.Import, impo
 	return imports, names, nil
 }
 
-func getCurrentDeploymentForStack(s backend.Stack) (*deploy.Snapshot, error) {
-	ctx := context.Background() // TODO this seems wrong, should pass in from commandContext()?
+func getCurrentDeploymentForStack(ctx context.Context, s backend.Stack) (*deploy.Snapshot, error) {
 	deployment, err := s.ExportDeployment(ctx)
 	if err != nil {
 		return nil, err
@@ -500,7 +499,9 @@ func newImportCmd() *cobra.Command {
 				UseLegacyDiff: useLegacyDiff(),
 			}
 
-			_, res := s.Import(commandContext(), backend.UpdateOperation{
+			ctx := commandContext()
+
+			_, res := s.Import(ctx, backend.UpdateOperation{
 				Proj:               proj,
 				Root:               root,
 				M:                  m,
@@ -511,7 +512,7 @@ func newImportCmd() *cobra.Command {
 			}, imports)
 
 			if generateCode {
-				deployment, err := getCurrentDeploymentForStack(s)
+				deployment, err := getCurrentDeploymentForStack(ctx, s)
 				if err != nil {
 					return result.FromError(err)
 				}
