@@ -15,6 +15,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -215,12 +216,20 @@ func TestDecryptingValue(t *testing.T) {
 
 type passThroughDecrypter struct{}
 
-func (d passThroughDecrypter) DecryptValue(ciphertext string) (string, error) {
+func (d passThroughDecrypter) DecryptValueWithContext(ctx context.Context, ciphertext string) (string, error) {
 	return ciphertext, nil
 }
 
+func (d passThroughDecrypter) BulkDecryptWithContext(ctx context.Context, ciphertexts []string) (map[string]string, error) {
+	return DefaultBulkDecryptWithContext(ctx, d, ciphertexts)
+}
+
+func (d passThroughDecrypter) DecryptValue(ciphertext string) (string, error) {
+	return d.DecryptValueWithContext(context.Background(), ciphertext)
+}
+
 func (d passThroughDecrypter) BulkDecrypt(ciphertexts []string) (map[string]string, error) {
-	return DefaultBulkDecrypt(d, ciphertexts)
+	return d.BulkDecryptWithContext(context.Background(), ciphertexts)
 }
 
 func TestSecureValues(t *testing.T) {
