@@ -1,4 +1,4 @@
-// Copyright 2016-2018, Pulumi Corporation.
+// Copyright 2016-2022, Pulumi Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -573,7 +573,8 @@ func GetLogs(
 	stackInfo RuntimeValidationStackInfo,
 	query operations.LogQuery) *[]operations.LogEntry {
 
-	snap, err := stack.DeserializeDeploymentV3(*stackInfo.Deployment, stack.DefaultSecretsProvider)
+	snap, err := stack.DeserializeDeploymentV3(context.Background(),
+		*stackInfo.Deployment, stack.DefaultSecretsProvider)
 	assert.NoError(t, err)
 
 	tree := operations.NewResourceTree(snap.Resources)

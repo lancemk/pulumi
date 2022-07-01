@@ -137,7 +137,8 @@ func (b *localBackend) getStack(name tokens.Name) (*deploy.Snapshot, string, err
 	}
 
 	// Materialize an actual snapshot object.
-	snapshot, err := stack.DeserializeCheckpoint(chk)
+	// TODO context.Background() seems wrong, keep refactoring ?
+	snapshot, err := stack.DeserializeCheckpoint(context.Background(), chk)
 	if err != nil {
 		return nil, "", err
 	}

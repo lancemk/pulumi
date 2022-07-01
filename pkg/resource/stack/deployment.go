@@ -1,4 +1,4 @@
-// Copyright 2016-2018, Pulumi Corporation.
+// Copyright 2016-2022, Pulumi Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package stack
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -165,7 +166,9 @@ func SerializeDeployment(snap *deploy.Snapshot, sm secrets.Manager, showSecrets 
 // from it. DeserializeDeployment will return an error if the untyped deployment's version is
 // not within the range `DeploymentSchemaVersionCurrent` and `DeploymentSchemaVersionOldestSupported`.
 func DeserializeUntypedDeployment(
-	deployment *apitype.UntypedDeployment, secretsProv SecretsProvider) (*deploy.Snapshot, error) {
+	ctx context.Context,
+	deployment *apitype.UntypedDeployment,
+	secretsProv SecretsProvider) (*deploy.Snapshot, error) {
 
 	contract.Require(deployment != nil, "deployment")
 	switch {
@@ -198,11 +201,15 @@ func DeserializeUntypedDeployment(
 		contract.Failf("unrecognized version: %d", deployment.Version)
 	}
 
-	return DeserializeDeploymentV3(v3deployment, secretsProv)
+	return DeserializeDeploymentV3(ctx, v3deployment, secretsProv)
 }
 
 // DeserializeDeploymentV3 deserializes a typed DeploymentV3 into a `deploy.Snapshot`.
-func DeserializeDeploymentV3(deployment apitype.DeploymentV3, secretsProv SecretsProvider) (*deploy.Snapshot, error) {
+func DeserializeDeploymentV3(
+	ctx context.Context,
+	deployment apitype.DeploymentV3,
+	secretsProv SecretsProvider) (*deploy.Snapshot, error) {
+
 	// Unpack the versions.
 	manifest, err := deploy.DeserializeManifest(deployment.Manifest)
 	if err != nil {
@@ -244,7 +251,7 @@ func DeserializeDeploymentV3(deployment apitype.DeploymentV3, secretsProv Secret
 		}
 
 		// Decrypt the collected secrets and create a decrypter that will use the result as a cache.
-		cache, err := d.BulkDecrypt(ciphertexts)
+		cache, err := d.BulkDecryptWithContext(ctx, ciphertexts)
 		if err != nil {
 			return nil, err
 		}

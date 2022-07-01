@@ -1,4 +1,4 @@
-// Copyright 2016-2020, Pulumi Corporation.
+// Copyright 2016-2022, Pulumi Corporation.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -184,11 +184,12 @@ func parseImportFile(f importFile, protectResources bool) ([]deploy.Import, impo
 }
 
 func getCurrentDeploymentForStack(s backend.Stack) (*deploy.Snapshot, error) {
-	deployment, err := s.ExportDeployment(context.Background())
+	ctx := context.Background() // TODO this seems wrong, should pass in from commandContext()?
+	deployment, err := s.ExportDeployment(ctx)
 	if err != nil {
 		return nil, err
 	}
-	snap, err := stack.DeserializeUntypedDeployment(deployment, stack.DefaultSecretsProvider)
+	snap, err := stack.DeserializeUntypedDeployment(ctx, deployment, stack.DefaultSecretsProvider)
 	if err != nil {
 		switch err {
 		case stack.ErrDeploymentSchemaVersionTooOld:
