@@ -15,6 +15,7 @@
 package stack
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -133,6 +134,18 @@ func (c *cachingCrypter) BulkDecrypt(ciphertexts []string) (map[string]string, e
 	return c.decrypter.BulkDecrypt(ciphertexts)
 }
 
+func (c *cachingCrypter) EncryptValueWithContext(ctx context.Context, plaintext string) (string, error) {
+	return c.encrypter.EncryptValueWithContext(ctx, plaintext)
+}
+
+func (c *cachingCrypter) DecryptValueWithContext(ctx context.Context, ciphertext string) (string, error) {
+	return c.decrypter.DecryptValueWithContext(ctx, ciphertext)
+}
+
+func (c *cachingCrypter) BulkDecryptWithContext(ctx context.Context, ciphertexts []string) (map[string]string, error) {
+	return c.decrypter.BulkDecryptWithContext(ctx, ciphertexts)
+}
+
 // encryptSecret encrypts the plaintext associated with the given secret value.
 func (c *cachingCrypter) encryptSecret(secret *resource.Secret, plaintext string) (string, error) {
 	// If the cache has an entry for this secret and the plaintext has not changed, re-use the ciphertext.
@@ -174,13 +187,13 @@ func newMapDecrypter(decrypter config.Decrypter, cache map[string]string) config
 	return &mapDecrypter{decrypter: decrypter, cache: cache}
 }
 
-func (c *mapDecrypter) DecryptValue(ciphertext string) (string, error) {
+func (c *mapDecrypter) DecryptValueWithContext(ctx context.Context, ciphertext string) (string, error) {
 	if plaintext, ok := c.cache[ciphertext]; ok {
 		return plaintext, nil
 	}
 
 	// The value is not currently in the cache. Decrypt it and add it to the cache.
-	plaintext, err := c.decrypter.DecryptValue(ciphertext)
+	plaintext, err := c.decrypter.DecryptValueWithContext(ctx, ciphertext)
 	if err != nil {
 		return "", err
 	}
@@ -193,7 +206,7 @@ func (c *mapDecrypter) DecryptValue(ciphertext string) (string, error) {
 	return plaintext, nil
 }
 
-func (c *mapDecrypter) BulkDecrypt(ciphertexts []string) (map[string]string, error) {
+func (c *mapDecrypter) BulkDecryptWithContext(ctx context.Context, ciphertexts []string) (map[string]string, error) {
 	// Loop and find the entries that are already cached, then BulkDecrypt the rest
 	secretMap := map[string]string{}
 	var toDecrypt []string
@@ -212,7 +225,7 @@ func (c *mapDecrypter) BulkDecrypt(ciphertexts []string) (map[string]string, err
 	}
 
 	// try and bulk decrypt the rest
-	decrypted, err := c.decrypter.BulkDecrypt(toDecrypt)
+	decrypted, err := c.decrypter.BulkDecryptWithContext(ctx, toDecrypt)
 	if err != nil {
 		return nil, err
 	}
@@ -228,4 +241,12 @@ func (c *mapDecrypter) BulkDecrypt(ciphertexts []string) (map[string]string, err
 	}
 
 	return secretMap, nil
+}
+
+func (c *mapDecrypter) DecryptValue(ciphertext string) (string, error) {
+	return c.DecryptValueWithContext(context.Background(), ciphertext)
+}
+
+func (c *mapDecrypter) BulkDecrypt(ciphertexts []string) (map[string]string, error) {
+	return c.BulkDecryptWithContext(context.Background(), ciphertexts)
 }
